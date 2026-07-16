@@ -1,25 +1,6 @@
 {
-  "name": "spotify-stats-widget",
+  "name": "spotify-widget-updater",
   "version": "1.0.0",
-  "description": "the backend for a simple spotify stats widget",
-  "main": "src/index.ts",
-  "scripts": {
-    "start": "npx tsx src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "spotify-stats-widget"
-  },
-  "author": "Blank",
-  "license": "ISC",
-  "dependencies": {
-    "axios": "^1.18.1",
-    "dotenv": "^17.4.2",
-    "node-persist": "^4.0.4"
-  },
-  "devDependencies": {
-    "@types/node": "^26.1.1",
-    "@types/node-persist": "^3.1.8"
-  }
+  "private": true,
+  "description": "GitHub Actions-based Spotify stats fetcher for Discord widget"
 }
