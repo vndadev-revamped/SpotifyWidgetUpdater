@@ -69,24 +69,46 @@ async function getSpotifyAccessToken() {
   return data.access_token;
 }
 
-// ── Fetch helper ───────────────────────────────────────────────────
+// ── Fetch helpers ──────────────────────────────────────────────────
 
-async function spotifyFetch(token, path) {
-  const res = await fetch(`https://api.spotify.com/v1/${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+async function spotifyFetch(token, path, retries = 2) {
+  const url = `https://api.spotify.com/v1/${path}`;
 
-  if (!res.ok) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.ok) {
+      return res.json();
+    }
+
+    // 429 and 5xx are retryable
+    if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+      const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s...
+      log(`Spotify API ${path} ${res.status}, retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     const text = await res.text();
     throw new Error(
       `Spotify API ${path} failed (${res.status}): ${text.slice(0, 200)}`
     );
   }
+}
 
-  return res.json();
+// Safe fetch — returns null on failure instead of throwing
+async function spotifyFetchSafe(token, path, defaultValue = null) {
+  try {
+    return await spotifyFetch(token, path);
+  } catch (err) {
+    log(`WARNING: ${err.message}`);
+    return defaultValue;
+  }
 }
 
 // ── Discord widget update ──────────────────────────────────────────
@@ -136,14 +158,16 @@ async function main() {
     recent,
     library,
   ] = await Promise.all([
+    // Critical — must succeed
     spotifyFetch(token, "me"),
     spotifyFetch(token, "me/playlists?limit=50"),
     spotifyFetch(token, "me/top/artists?limit=5&time_range=short_term"),
     spotifyFetch(token, "me/top/tracks?limit=5&time_range=short_term"),
     spotifyFetch(token, "me/top/artists?limit=1&time_range=long_term"),
     spotifyFetch(token, "me/top/tracks?limit=1&time_range=long_term"),
-    spotifyFetch(token, "me/player/recently-played?limit=50"),
-    spotifyFetch(token, "me/tracks?limit=1"),
+    // Graceful fallback — these may fail without aborting the run
+    spotifyFetchSafe(token, "me/player/recently-played?limit=50", { items: [] }),
+    spotifyFetchSafe(token, "me/tracks?limit=1", { total: 0 }),
   ]);
 
   // 3. Calculate stats
