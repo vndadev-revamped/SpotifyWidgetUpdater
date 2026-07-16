@@ -2,153 +2,212 @@
 
 > **Original widget code & layout by [@Blankiiii](https://github.com/Blankiiii)** — from [Blankiiii/Discord-Widget-Collection](https://github.com/Blankiiii/Discord-Widget-Collection/tree/main/Spotify%20Stats%20Widget)
 >
-> This repository is maintained by vndadev-revamped. The original TypeScript source, widget layout design, and Spotify API logic are Blankiiii's work. The GitHub Actions port, zero-dependency rewrite, and `get-refresh-token.js` helper were added on top of her original project.
+> This repo is maintained by **vndadev-revamped**. The original TypeScript source, widget layout design, and Spotify API logic are Blankiiii's work. The GitHub Actions port, zero-dependency rewrite, and `get-refresh-token.js` helper were added on top of her project.
 
 ---
 
 <h1 align="center">Spotify Stats Widget</h1>
-<h3 align="center">Spotify stats synced to your Discord profile — via GitHub Actions</h3>
+<h3 align="center">Your Spotify stats on your Discord profile — updated daily via GitHub Actions</h3>
 
-A GitHub Actions-based Spotify stats fetcher that automatically updates a Discord application profile widget. Runs daily or manually via workflow dispatch.
+A GitHub Actions-based script that fetches your Spotify profile stats and pushes them to your Discord application profile widget. Runs automatically every 24 hours or manually whenever you want.
 
-> Originally a local-only TypeScript app by **Blankiiii** (ran via `start.bat` on your PC with a live HTTP server for OAuth).  
-> **This version ports the same logic to GitHub Actions** so it runs in the cloud — no PC needed after setup.
+> The original project by **Blankiiii** required the script to run continuously on your PC with a local HTTP server for OAuth login.  
+> **This version runs entirely on GitHub's cloud** — no PC, no process, no dependencies. Set it up once and forget about it.
 
 ---
 
-### Architecture Change (from original)
+## How it works (in plain terms)
+
+```
+Every 24 hours:
+  GitHub wakes up → runs the script → gets your Spotify stats → updates your Discord profile → goes back to sleep
+```
+
+You don't need to keep anything running. It's just a file on GitHub that executes on schedule.
+
+---
+
+## Architecture change (from original)
 
 | | Original (Blankiiii) | This version |
 |---|---|---|
-| **Runtime** | Your PC (long-running process) | GitHub Actions (one-shot per run) |
-| **Auth** | OAuth PKCE via browser | Refresh token stored in GitHub Secrets |
-| **Persistence** | Local disk (`node-persist`) | None needed (stateless) |
-| **Dependencies** | TypeScript + axios + dotenv + node-persist | Zero dependencies — vanilla JS, Node 22 `fetch` |
+| **Runtime** | Your PC (process runs forever) | GitHub Actions (single run, then exits) |
+| **Authentication** | OAuth PKCE via browser every time | Refresh token stored once in GitHub Secrets |
+| **Storage** | Local disk (`node-persist`) | None (stateless) |
+| **Dependencies** | TypeScript + axios + dotenv + node-persist | Zero — vanilla JS, Node 22 `fetch` |
 | **Schedule** | `setInterval` in a running process | GitHub Actions cron (`0 0 */1 * *`) |
 
 ---
 
-## What You Need to Do
+## Setup Guide (4 steps, one-time only)
 
-You'll do **three things**, one time each.
+### Step 1 — Fork this repository
 
-### 1 — Get a Spotify Refresh Token (one-time browser login)
+Click the **Fork** button on GitHub (top-right corner of this page).
 
-This is the only step you can't skip. Spotify requires you to log in once to authorize the app to read your stats (`user-top-read`, `user-read-recently-played`, `playlist-read-private`, `user-library-read`).
-
-Run the included helper script on your PC **once**:
+Clone it to your PC if you want (step 2 needs it locally for a moment):
 
 ```bash
-cd spotify-widget-updater
+git clone https://github.com/YOUR_USERNAME/SpotifyWidgetUpdater.git
+cd SpotifyWidgetUpdater
+```
+
+### Step 2 — Get your Spotify refresh token
+
+This is the only step you need your PC for, and only once. Spotify requires you to log in through a browser to authorize the app to read your listening stats.
+
+**Prerequisite:** Create a Spotify app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard):
+1. Click **Create App**
+2. Set **Redirect URI** to: `http://127.0.0.1:8888`
+3. Check **Web API** under APIs used
+4. Copy your **Client ID** — you'll need it next
+
+Now run the helper script:
+
+```bash
+set SPOTIFY_CLIENT_ID=your_client_id_here   (Windows CMD)
+# or: $env:SPOTIFY_CLIENT_ID="your_client_id_here"   (PowerShell)
+
 node get-refresh-token.js
 ```
 
 <details>
-<summary>What the script does</summary>
+<summary>What happens when you run it</summary>
 
-1. Opens a URL in your browser → you log into Spotify → click "Agree"
-2. Spotify redirects to `http://127.0.0.1:8888?code=***`
-3. The script captures the code, exchanges it for tokens, and **prints your `refresh_token`**
-4. Copy it. That's your golden key — it never expires (unless you revoke it manually)
+1. It prints a URL — open it in your browser
+2. Log into Spotify and click **Agree**
+3. Spotify redirects to a locally hosted page that confirms success
+4. The terminal prints your **refresh token** — copy it carefully
 
 </details>
 
-**You'll need your `SPOTIFY_CLIENT_ID` ready** ([get it here → Spotify Developer Dashboard](https://developer.spotify.com/dashboard)):
-- Click "Create App"
-- Set **Redirect URI** to: `http://127.0.0.1:8888`
-- Check "Web API" under APIs used
+> Your refresh token **never expires** (unless you revoke it manually from your Spotify account). You only need to do this once.
 
----
+### Step 3 — Add GitHub Secrets
 
-### 2 — Add GitHub Secrets
+Go to your forked repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
 
-Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` → `New repository secret`.
+Add these 5 secrets **exactly as they are, without any quotes**:
 
-Add these 5 secrets **without quotes**, raw values only:
-
-| Secret | Description |
+| Secret name | What to put |
 |---|---|
-| `SPOTIFY_CLIENT_ID` | From your [Spotify Dashboard](https://developer.spotify.com/dashboard) |
-| `SPOTIFY_REFRESH_TOKEN` | The value printed by `get-refresh-token.js` |
+| `SPOTIFY_CLIENT_ID` | Your Client ID from the Spotify Dashboard |
+| `SPOTIFY_REFRESH_TOKEN` | The token printed by `get-refresh-token.js` |
 | `DISCORD_TOKEN` | Your Discord bot token |
 | `DISCORD_APPLICATION_ID` | Your Discord application ID |
 | `DISCORD_USER_ID` | Your Discord user ID |
 
-> ⚠️ **Do not use quotes.** Paste raw values only.
+> Do NOT wrap values in quotes. Do NOT use `{}` placeholders. Paste the raw string.
+
+### Step 4 — Create the widget in Discord
+
+> This step is important: the widget identity must be initialized through Discord's widget system before the bot token can update it. Doing it manually or only importing the layout JSON won't work.
+
+Use the [Widget Creator extension](https://github.com/TheCreativeGod/Discord-Widgets-Extension) by TheCreativeGod:
+
+1. Install the extension and go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Click the **Widget Creator** button (bottom-right corner)
+3. Paste the **entire contents** of [`widget-layout.json`](widget-layout.json) into the JSON box
+4. Select **+ Create new widget** from the dropdown
+5. Click **Start** and complete any captcha or 2FA prompts
+6. Once it finishes, go to the newly created app → **Bot** → **Reset Token**
+7. Copy the new **Application ID** and **Bot Token**
+8. Update `DISCORD_APPLICATION_ID` and `DISCORD_TOKEN` in your GitHub Secrets with these new values
+
+> The `widget-layout.json` file only defines how the widget looks. It contains no credentials. The script provides the live data.
 
 ---
 
-### 3 — Import the Widget Layout
+## First run
 
-The widget layout file is included: [`widget-layout.json`](widget-layout.json)
+Go to your repo → **Actions** → **Update Spotify Widget** → **Run workflow**.
 
-1. Use the [Widget Creator extension](https://discord.com/channels/603970300668805120/1520805824040013976/threads/1521122189993050183/1521122189993050183) by TheCreativeGod
-2. Choose **Create new widget**, paste the contents of `widget-layout.json`
-3. Complete the creation flow (captcha/2FA if prompted)
-4. Copy the new Application ID and Bot Token into your GitHub Secrets
+Check the logs — you should see:
 
-> This file defines the layout and data bindings. It does NOT contain any credentials. The Node.js script provides the live data.
-
----
-
-### 4 — Run the workflow
-
-Go to `Actions` → `Update Spotify Widget` → `Run workflow`.
-
-Check the logs for:
-- ✅ Token exchange successful
-- ✅ Spotify data fetched
-- ✅ Stats calculated
-- ✅ Discord widget updated
+- Token exchange successful
+- Spotify data fetched
+- Stats calculated
+- Discord widget updated
+- Finished successfully
 
 ---
 
-## Automatic Updates
+## Automatic updates
 
-Runs daily:
+The workflow runs every day at midnight UTC:
 
 ```yaml
-0 0 */1 * *
+schedule:
+  - cron: "0 0 */1 * *"
 ```
 
----
-
-## What It Shows
-
-Each run fetches and displays:
-
-- **Display name** + profile picture
-- **Followers** & **Public Playlists**
-- **Current Obsession** — your #1 short-term track
-- **Heavy Rotation** — your #1 short-term artist
-- **All-Time Favourite** — your #1 long-term artist
-- **Soundtrack of My Life** — your #1 long-term track
-- **Yesterday's Vibe** — minutes listened in the last 24h
-- **Library Size** — total saved tracks
+You can also trigger it manually anytime with the **Run workflow** button.
 
 ---
 
-## Local Testing
+## What the widget shows
 
-Want to test locally before pushing?
+| Field | Source |
+|---|---|
+| Display name + profile picture | Your Spotify profile |
+| Followers | Your Spotify follower count |
+| Public Playlists | Number of public playlists you own |
+| Current Obsession | Your #1 track (short term) |
+| Heavy Rotation | Your #1 artist (short term) |
+| All-Time Favourite | Your #1 artist (long term) |
+| Soundtrack of My Life | Your #1 track (long term) |
+| Yesterday's Vibe | Minutes you listened in the last 24 hours |
+| Library Size | Total saved tracks |
+
+---
+
+## How this works — the pattern
+
+This approach works for any service that gives you an API with a long-lived token or key:
+
+```
+[Your data source] → [Script on GitHub] → [GitHub Actions cron] → [Your Discord widget]
+```
+
+| Ingredient | What it is |
+|---|---|
+| A script | Single `.js` file that fetches data, builds a payload, PATCHes Discord |
+| A workflow file | `.github/workflows/update-widget.yml` — tells GitHub when and how to run |
+| GitHub Secrets | Your private tokens, never exposed in the code |
+| A schedule | The `cron` line that triggers automatic runs |
+
+You can apply this pattern to any data source as long as it supports API key or refresh token auth. Weather, YouTube stats, crypto prices, etc.
+
+---
+
+## Local testing
 
 ```bash
-# Set env vars in your terminal first, then:
+# Set all 5 env vars in your terminal, then:
 node spotify-widget.js
 ```
 
 ---
 
-## Disclaimer
+## License & sharing
 
-- Discord widgets are **not real-time**. This updates every 24 hours.
-- Your Spotify refresh token gives read-only access to your profile & listening history. It does not control playback.
-- Never commit `.env` files or hardcode secrets.
+You're free to use, modify, and share this project as long as you give credit:
+
+- **Original project:** [Blankiiii](https://github.com/Blankiiii) for the widget code, layout, and Spotify API logic
+- **GitHub Actions adaptation:** [vndadev-revamped](https://github.com/vndadev-revamped) for the cloud port, zero-dependency rewrite, and helper script
 
 ---
 
 ## Credits
 
 - **Original project:** [Blankiiii/Discord-Widget-Collection](https://github.com/Blankiiii/Discord-Widget-Collection/tree/main/Spotify%20Stats%20Widget) by [@Blankiiii](https://github.com/Blankiiii)
-- **GitHub Actions port & zero-dependency rewrite:** vndadev-revamped
+- **GitHub Actions port:** [vndadev-revamped](https://github.com/vndadev-revamped)
 - **Widget Extension:** [TheCreativeGod/Discord-Widgets-Extension](https://github.com/TheCreativeGod/Discord-Widgets-Extension)
+
+---
+
+## Disclaimer
+
+- Discord widgets are **not real-time**. Updates happen every 24 hours.
+- Your Spotify refresh token is **read-only**. It cannot control playback or modify your account.
+- Never commit `.env` files or hardcode secrets in source code.
