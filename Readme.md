@@ -1,3 +1,5 @@
+## THIS REPO IS MINE BUT THE FILES USED HERE DON'T, CREDITS TO: @Blankiiii
+
 # Spotify Stats
 
 ## Widget Layout / sample data
