@@ -1,28 +1,26 @@
-name: Update Spotify Widget
+name: Actualizar Widget Diario
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "0 0 */1 * *"
+    - cron: '0 00 * * *'  # Todos los días a las 00:00 AM 
+  workflow_dispatch:      # Ejecución manual desde GitHub
 
 jobs:
-  update:
+  update-widget:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: 22
-
-      - name: Run Widget Updater
-        run: node spotify-widget.js
+          node-version: '18'
+      
+      - name: Ejecutar script
         env:
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
           DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+        run: node quote-widget.js
